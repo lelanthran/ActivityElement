@@ -1,0 +1,58 @@
+
+<div name=container-signin>
+   <div>
+      Enter Username<br>
+      <input name=username><br>
+   </div>
+   <div>
+      Enter Password<br>
+      <input name=password type=password><br>
+   </div>
+   <div>
+      <button name=signin>Sign in</button>
+      <button name=signup>Sign up</button>
+   </div>
+   <div name=message>
+   </div>
+   <dialog name=container-signup></dialog>
+</div>
+
+<script>
+   function onCreate(activity, params) {
+      const messageDiv = activity.root.querySelector("[name=message]");
+      const btnSignup =  activity.root.querySelector("[name=signup]");
+      const btnSignin =  activity.root.querySelector("[name=signin]");
+      const inUsername = activity.root.querySelector("[name=username]");
+      const inPassword = activity.root.querySelector("[name=password]");
+      console.log ("activity:" + activity);
+      console.log ("params:" + params);
+      btnSignup.addEventListener("click", () => {
+         console.log ("clicked");
+         const containerSignup = activity.root.querySelector("[name=container-signup]");
+         containerSignup.showModal();
+         ActivityElement.intentStart("StartSignup", {}, { container: containerSignup}).then((activity) => {
+            activity.result.then((result) => {
+               if (result.status == "completed") {
+                  messageDiv.innerHTML = "<i>Please sign in</i>";
+               } else {
+                  messageDiv.innerHTML = `<b>Failed to sign up</b>: ${result.status}, ${result.reason}`;
+               }
+               containerSignup.close();
+            });
+         });
+      });
+      btnSignin.addEventListener("click", () => {
+         console.log ("clicked");
+         messageDiv.innerHTML = "";
+         if (inUsername.value === "test" && inPassword.value === "123") {
+            localStorage.setItem("authorised", "true");
+            activity.finish(true);
+         } else {
+            messageDiv.innerHTML = "<b>Authentication failure</b>";
+            ActivityElement.intentStart("AuthNOK", {}, {});
+         }
+      });
+   }
+
+   exports.onCreate = onCreate;
+</script>

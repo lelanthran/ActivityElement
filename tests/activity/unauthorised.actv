@@ -1,0 +1,19 @@
+<div>
+   <h2>Unauthorised</h2>
+   <button>
+   Sign in
+   </button>
+</div>
+
+<script>
+   function onCreate(activity, params) {
+      console.log ("activity: " + activity);
+      console.log ("Params: " + params);
+      activity.root.querySelector("button").addEventListener("click", () => {
+         activity.finish(true);
+      });
+   }
+
+   exports.onCreate = onCreate;
+</script>
+

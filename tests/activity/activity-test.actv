@@ -1,0 +1,43 @@
+<div>
+   <p>Please enter your name:</p>
+   <input id="nameInput" type="text" />
+   <button id="okBtn">OK</button>
+   <button id="cancelBtn">Cancel</button>
+   <button id="failBtn">Fail</button>
+   </div>
+
+   <script>
+   exports.onCreate = function(activity, intent) {
+      const root = activity.root;
+      const input = root.querySelector('#nameInput');
+      const okBtn = root.querySelector('#okBtn');
+      const cancelBtn = root.querySelector('#cancelBtn');
+      const failBtn = root.querySelector('#failBtn');
+
+      okBtn.addEventListener('click', () => {
+         const name = input.value.trim();
+         if (name) {
+            activity.finish({ name });
+         } else {
+            alert('Please enter your name');
+         }
+      });
+
+      cancelBtn.addEventListener('click', () => {
+         activity.cancel('User cancelled');
+      });
+
+      failBtn.addEventListener('click', () => {
+         activity.fail('User failed');
+      });
+
+      nameInput.value = JSON.stringify(activity.params);
+   }
+
+   exports.onCancel = function () {
+      // Cleanup if needed on external cancellation
+      console.log('Activity was cancelled externally');
+   }
+
+</script>
+

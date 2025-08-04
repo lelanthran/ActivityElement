@@ -1,0 +1,20 @@
+<div>
+   <h2> Your confidential data </h2>
+   <div name=data> </div>
+   <div name=message> </div>
+</div>
+
+<script>
+   exports.onCreate = function (activity, params) {
+      const divData = activity.root.querySelector("[name=data]");
+      const divMessage = activity.root.querySelector("[name=message]");
+      if (localStorage.getItem("authorised") !== "true") {
+         divMessage.innerHTML = "<b>Not Authorised</b>";
+         activity.finish(false);
+      } else {
+         divMessage.innerHTML = "Authorised";
+         divData.innerHTML = "This is the protected data";
+      }
+   }
+</script>
+

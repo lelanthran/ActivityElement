@@ -7,22 +7,23 @@
  */
 class ActivityElement extends HTMLElement {
    /**
-    * Registry mapping intent names to their remote source URLs.
-    * @type {Map<string, string>}
+    * Registry mapping intent names to their configuration.
+    * @type {Map<string, {container: HTMLElement, source: string|Object}>}
     * @private
     * @static
     */
    static _intentRegistry = new Map();
 
    /**
-    * Registers an intent with its remote source URL for later launching.
+    * Registers an intent with its container and source (remote URL or lifecycle object).
     *
     * @param {string} intentName - Unique identifier for the intent
-    * @param {string} remoteSrc - URL to fetch the activity HTML/JavaScript from
+    * @param {HTMLElement} container - Container element where the activity will be displayed
+    * @param {string|Object} source - Either a URL to fetch the activity HTML/JavaScript from, or a lifecycle object with methods like onCreate/onDestroy
     * @static
     */
-   static registerIntent(intentName, remoteSrc) {
-      ActivityElement._intentRegistry.set(intentName, remoteSrc);
+   static intentRegister(intentName, container, source) {
+      ActivityElement._intentRegistry.set(intentName, { container, source });
    }
 
    /**
@@ -32,7 +33,7 @@ class ActivityElement extends HTMLElement {
     * @param {string} intentName - The name of the registered intent to launch
     * @param {Object} [params={}] - Parameters to pass to the activity
     * @param {Object} [options={}] - Launch options
-    * @param {HTMLElement} [options.container=document.body] - Container element for the activity
+    * @param {HTMLElement} [options.container] - Container element to override the registered container
     * @returns {Promise<Object>} Promise resolving to:
     *   - element: The ActivityElement instance
     *   - result: Promise resolving to activity completion result
@@ -42,16 +43,16 @@ class ActivityElement extends HTMLElement {
     * @static
     */
    static intentStart(intentName, params = {}, options = {}) {
-      const remoteSrc = ActivityElement._intentRegistry.get(intentName);
-      if (!remoteSrc) {
+      const intentConfig = ActivityElement._intentRegistry.get(intentName);
+      if (!intentConfig) {
          throw new Error(`No activity registered for intent: ${intentName}`);
       }
 
-      const container = options.container || document.body;
+      const container = options.container || intentConfig.container || document.body;
       const element = document.createElement('activity-element');
       container.appendChild(element);
 
-      return element._launch(remoteSrc, params, options);
+      return element._launch(intentConfig.source, params, options);
    }
 
    /**
@@ -122,46 +123,73 @@ class ActivityElement extends HTMLElement {
    result;
 
    /**
-    * Launches the activity by fetching and executing remote content.
+    * Launches the activity by either fetching remote content or using a local lifecycle object.
     *
-    * @param {string} remoteSrc - URL to fetch the activity from
+    * @param {string|Object} source - URL to fetch the activity from or lifecycle object
     * @param {Object} [params={}] - Parameters to pass to the activity
     * @param {Object} [options={}] - Launch options
     * @returns {Promise<Object>} Promise resolving to activity control object
     * @throws {Error} When activity is already launched or fetch fails
     * @private
     */
-   _launch(remoteSrc, params = {}, options = {}) {
+   _launch(source, params = {}, options = {}) {
       if (this._state !== 'pending') {
          throw new Error('Activity already launched or finished');
       }
       this._activity.params = params;
-      return fetch (remoteSrc).then((response) => {
-         if (!response.ok) {
-            throw new Error(`Fetch: ${remoteSrc}: ${response.status} ${response.statusText}`);
+
+      if (typeof source === 'string') {
+         // Remote source - fetch and execute
+         return fetch(source).then((response) => {
+            if (!response.ok) {
+               throw new Error(`Fetch: ${source}: ${response.status} ${response.statusText}`);
+            }
+            return response.text();
+         }).then((htmlText) => {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlText;
+
+            this._exports = this._extractAndExecuteScripts(tempDiv);
+
+            // Append all remaining nodes to this element (root)
+            Array.from(tempDiv.children).forEach((child) => this.appendChild(child));
+
+            if (typeof this._exports.onCreate === 'function') {
+               this._exports.onCreate.call(this, this._activity, params);
+            }
+            return {
+               element: this,
+               result: this.result,
+               cancel: (reason) => this.cancel(reason),
+               state: () => this.state
+            };
+         }).catch((error) => {
+            this.fail(error);
+         });
+      } else if (typeof source === 'object' && source !== null) {
+         // Local lifecycle object
+         try {
+            this._exports = source;
+
+            if (typeof this._exports.onCreate === 'function') {
+               this._exports.onCreate.call(this, this._activity, params);
+            }
+
+            return Promise.resolve({
+               element: this,
+               result: this.result,
+               cancel: (reason) => this.cancel(reason),
+               state: () => this.state
+            });
+         } catch (error) {
+            this.fail(error);
+            return Promise.reject(error);
          }
-         return response.text();
-      }).then((htmlText) => {
-         const tempDiv = document.createElement('div');
-         tempDiv.innerHTML = htmlText;
-
-         this._exports = this._extractAndExecuteScripts(tempDiv);
-
-         // Append all remaining nodes to this element (root)
-         Array.from(tempDiv.children).forEach((child) => this.appendChild(child));
-
-         if (typeof this._exports.onCreate === 'function') {
-            this._exports.onCreate(this._activity, params);
-         }
-         return {
-            element: this,
-            result: this.result,
-            cancel: (reason) => this.cancel(reason),
-            state: () => this.state
-         };
-      }).catch((error) => {
+      } else {
+         const error = new Error('Source must be a string (URL) or object (lifecycle object)');
          this.fail(error);
-      });
+         return Promise.reject(error);
+      }
    }
 
    /**
@@ -280,3 +308,4 @@ class ActivityElement extends HTMLElement {
 
 // Register the custom element
 customElements.define('activity-element', ActivityElement);
+

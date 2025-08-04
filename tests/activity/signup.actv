@@ -1,0 +1,48 @@
+<div name=container-signup>
+   <div>
+      Enter Username<br>
+      <input name=username><br>
+   </div>
+   <div>
+      Enter Password<br>
+      <input name=password1 type=password><br>
+   </div>
+   <div>
+      Confirm Password<br>
+      <input name=password2 type=password><br>
+   </div>
+   <div>
+      <button name=cancel>Cancel</button>
+      <button name=signup>Sign up</button>
+   </div>
+</div>
+
+<script>
+   function onCreate(activity, params) {
+      const btnCancel =  activity.root.querySelector("[name=cancel]");
+      const btnSignup =  activity.root.querySelector("[name=signup]");
+      const inPassword1 = activity.root.querySelector("[name=password1]");
+      const inPassword2 = activity.root.querySelector("[name=password2]");
+      btnSignup.addEventListener("click", () => {
+         if (inPassword1.value !== inPassword2.value) {
+            alert("Passwords don't match");
+         } else {
+            ActivityElement.intentStart("SignupOk", {}, {}).then((act) => {
+               act.result.then((result) => {
+                  if (result.status === "complete") {
+                     activity.finish(true);
+                  } else {
+                     activity.finish(false);
+                  }
+               });
+            });
+         }
+      });
+      btnCancel.addEventListener("click", () => {
+         alert ("Sign up cancelled by user");
+         activity.cancel("Cancelled by user");
+      });
+   }
+
+   exports.onCreate = onCreate;
+</script>

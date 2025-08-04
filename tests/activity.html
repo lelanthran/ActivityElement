@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>ActivityElement Demo</title>
+<style>
+activity-element {
+display: block;
+border: 1px solid #aaa;
+padding: 10px;
+         margin-top: 10px;
+}
+</style>
+<script src="../activity-element.js"></script>
+</head>
+<body>
+<h1>ActivityElement Demo</h1>
+<button id="start-blocking">Start Activity (blocking)</button>
+<button id="start-nonblocking">Start Activity (non-blocking)</button>
+<button id="start-dialog">Start Activity (dialog)</button>
+<dialog id='dialog-container'>
+</dialog>
+<div id="container"></div>
+
+<script>
+// Register the activity URL
+const body = document.querySelector("body");
+ActivityElement.intentRegister('askName', body, 'activity/activity-test.actv');
+
+const container = document.getElementById('container');
+const dialogContainer = document.getElementById('dialog-container');
+const btnBlocking = document.getElementById('start-blocking');
+const btnNonBlocking = document.getElementById('start-nonblocking');
+const btnDialog = document.getElementById('start-dialog');
+
+btnBlocking.onclick = async () => {
+   try {
+      document.querySelectorAll("button").forEach(b => b.disabled = true);
+      console.log ("Starting intent");
+      const activity = await ActivityElement.intentStart('askName', "trewst", { });
+      const result = await activity.result;
+      console.log ("Intent returned " + JSON.stringify (result, " ", 3));
+      if (result.status == "completed") {
+         console.log ("completed with value: " + JSON.stringify(result.value, " ", 3));
+      }
+      if (result.status == "cancelled") {
+         console.log ("cancelled with reason: " + result.reason);
+      }
+   } catch (e) {
+      alert('Error: ' + e);
+   } finally {
+      document.querySelectorAll("button").forEach(b => b.disabled = false);
+   }
+};
+
+btnNonBlocking.onclick = () => {
+   console.log ("Starting intent");
+   const promise = ActivityElement.intentStart('askName', {}, { container });
+   console.log ("Intent returned " + JSON.stringify (promise, " ", 3));
+   promise.then(activity => {
+      activity.result.then(result => {
+         console.log ("Intent ended");
+         console.log('Non-blocking result: ' + JSON.stringify(result, " ", 3));
+         if (result.status == "completed") {
+            console.log ("Completed with value: " + JSON.stringify(result.value, " ", 3));
+         }
+         if (result.status == "cancelled") {
+            console.log ("cancelled with reason: " + result.reason);
+         }
+      }).catch(e => {
+         alert('Error: ' + e);
+      });
+   }).catch(e => {
+      alert('Error: ' + e);
+   });
+   console.log ("Intent started");
+};
+
+btnDialog.onclick = () => {
+   const promise = ActivityElement.intentStart('askName', {}, { container: dialogContainer });
+   promise.then((activity) => {
+      dialogContainer.showModal();
+      activity.result.then((result) => {
+         console.log (result.status);
+         console.log (result.status + " with value " + JSON.stringify(result.value, " ", 3));
+         console.log (result.status + " with reason " + result.reason);
+         dialogContainer.close();
+      }).catch((e) => {
+         alert ("Error: " + e);
+         dialogContainer.close();
+      });
+   })
+};
+
+</script>
+</body>
+</html>
+

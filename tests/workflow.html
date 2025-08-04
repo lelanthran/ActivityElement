@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="UTF-8" />
+   <title>Workflow Test</title>
+   <style>
+      activity-element {
+         display: block;
+         border: 1px solid #aaa;
+         padding: 10px;
+         margin-top: 10px;
+      }
+   </style>
+   <script src="../js/activity-element.js"></script>
+
+</head>
+
+<body onload='onloadFunc();'>
+   <h1>Workflow Test</h1>
+   <dialog id=container-auth-warning></dialog>
+   <div id="container-sign-in"></div>
+
+   <script>
+      /*
+                               ┌──────────┐
+                               │ Landing  │
+                       ┌───────┼          ┼───────┐
+                       │       │Check Auth│       │
+                       │       └──────────┘       │
+                       │                          │
+                 NoAuth│                  HasAuth │
+                       │                          │
+                       │                          │
+                 ┌─────▼──────┐           ┌───────▼─────┐
+                 │Unauthorised│           │ Authorised  │
+                 │            │           │             │
+                 │ BTN-SIGN-IN│           │ TBL-LISTING │
+                 └──────┬─────┘           └───▲─────────┘
+                        │                     │
+           Start Signin │                     │
+                        │                     │
+                 ┌──────▼─────┐               │
+       ┌─────────►  Sign-in   │               │AuthOK
+       │         │            │               │
+   ┌───┼───────┐ │IPT-USERNAME├───────────────┘
+   │AuthFailure│ │IPT-PASSWORD│
+   └────▲──────┘ │            │
+        │        │            ◄─────┐
+        └────────┼BTN-SIGN-IN │     │
+    AuthNOK      │BTN-SIGN-UP │     │
+                 └─────┬──────┘     │
+                       │            │
+         Start Signup  │            │
+                 ┌─────▼──────┐     │
+                 │   Sign-up  │     │
+                 │            │     │
+                 │IPT-USERNAME│     │SignupOK
+                 │IPT-PASSWORD┼─────┘
+                 │            │
+                 │ BTN-SIGN-UP│
+                 └────────────┘
+
+      */
+
+      let containerSignIn = null;
+      let containerLandingPage = null;
+      let containerAuthWarning = null;
+
+      function onloadFunc() {
+
+         let containerSignIn = document.getElementById("container-sign-in");
+         let containerLandingPage = document.getElementById("container-landing-page");
+         let containerAuthWarning = document.getElementById("container-auth-warning");
+
+         const registrations = [
+            ["LandingPage",   containerLandingPage,   "activity/landing.actv"],
+            ["NoAuth",        containerAuthWarning,   "activity/unauthorised.actv"],
+            ["StartSignin",   containerSignIn,        "activity/signin.actv"],
+            ["StartSignup",   null,                   "activity/signup.actv"],
+            ["SignupOk",      null, {
+               onCreate: (activity, params) => {
+                  alert("Signup success");
+                  activity.finish(true);
+               }
+            }],
+            ["AuthNOK", null, {
+               onCreate: (activity, params) => {
+                  alert("Auth Failure");
+               }
+            }],
+         ]
+
+         registrations.forEach((reg) => {
+            ActivityElement.intentRegister(reg[0], reg[1], reg[2]);
+         });
+
+         const storedAuth = localStorage.getItem("authorised");
+         if (storedAuth !== "true") {
+            containerAuthWarning.showModal();
+            ActivityElement.intentStart("NoAuth", "params", {})
+               .then((activity) => {
+                  activity.result.then((result) => {
+                     console.log("Returned from activity: " + JSON.stringify(result, " ", 3))
+                     containerAuthWarning.close();
+                     ActivityElement.intentStart("StartSignin", { authFailure: false }, {})
+                        .then((activity) => {
+                           activity.result.then((result) => {
+                              ActivityElement.intentStart("LandingPage", {}, {});
+                           });
+                        });
+                  });
+               });
+         } else {
+            ActivityElement.intentStart("LandingPage", {}, {});
+         }
+      }
+
+   </script>
+</body>
+
+</html>
