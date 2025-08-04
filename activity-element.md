@@ -2,11 +2,71 @@
 
 ## Purpose
 
-`ActivityElement` is a custom HTML element designed to manage "remote activities"-self-contained HTML/JavaScript modules loaded dynamically at runtime. Each activity has a well-defined lifecycle and supports controlled interactions (complete, cancel, fail). This abstraction enables modular, user-driven workflows without hard-coding logic into the main application.
+`ActivityElement` is a custom HTML element designed to manage "remote
+activities" which are self-contained HTML/JavaScript bundles loaded
+dynamically at runtime. Each activity has a well-defined lifecycle and
+supports controlled interactions (complete, cancel, fail). This abstraction
+enables modular, user-driven workflows without hard-coding logic into the main
+application.
+
+In plain language: you define a workflow, that can call other workflows which
+return a result, which your workflow can then use. You can also:
+
+1. Call other workflows in non-blocking mode (use `.then()` to retrieve the
+result).
+2. Call other workflows in blocking mode (use `await` for the result).
+3. Specify which HTML element should serve as a container for the called
+workflow.
+4. Specify a default HTML element to be used for any workflow started for a
+specific `Intent` (more about `Intent`s below).
+5. Write your own workflow using a fragment of HTML and methods scoped to the
+single instance of that fragment, like a normal object.
+
+> Specifying the containing HTML element allows the caller to, on one HTML
+> page, put the activity `myact.actv` into a div on the page, and in another
+> HTML page put the activity `myact.actv` into a dialog. It's very flexible.
+
+Each workflow should be a self-contained sub-program that will return a value
+which the caller will get via a `Promise`. This sub-program is started by an
+event. The events are called **Intents** and the workflows/sub-programs are
+called **Activities**.
+
+# How it works
+
+The general idea is to facilitate designing workflows, which can be started as
+non-blocking sub-programs (just start them) or as blocking subprograms that
+return a value (`await` on them).
+
+The nouns (`Activity` and `Intent`) are chosen to mimic the Android
+application architecture, but they are very different.
+
+A developer creates an `Activity` which will be served as a static file
+download by the webserver. I use the file extension `.actv` and I set my code
+editors to all identify that as an HTML file.
+
+The `.actv` file contains a snippet of HTML and some lifecycle functions. The
+caller registers `Intent`s along with the URL to the `.actv` file that must be
+launched when that `Intent` is started with a call to
+`Activity.intentStart()`.
+
+When an `Intent` is started/launched, the `.actv` file that was registered for
+that `Intent` is downloaded, the HTML fragment within the `.actv` file is
+inserted into the DOM and the Javascript object that is created contains the
+lifecycle methods for that instance.
+
+The example will probably clarify things better than I can. Note that there
+are two examples in this repo; the [workflow.html](./tests/workflow.html) one
+is probably a more realistic view of how this would look in a sufficiently
+complex workflow.
 
 ## Example Usage
 
+Enough explanations; an example is a better explanation anyway.
+
 ### Activity Module (`activity-test.actv`)
+
+This is an example implementation of an `Activity`. it's a very simple one
+(see the `tests/` directory in this repo for more involved examples).
 
 ```html
 <!-- activity-test.actv -->
@@ -53,6 +113,10 @@ exports.onCancel = function () {
 ```
 
 ### Main HTML File
+
+This is the example HTML file that uses the above activity. The caller needs
+to only use `intentRegister()` and `intentStart()` to use the activity. The
+activity can return a value (and does, in this example) via a promise.
 
 ```html
 <!DOCTYPE html>
